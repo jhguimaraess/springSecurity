@@ -1,0 +1,55 @@
+package com.project.springsecurity.controller;
+
+import com.project.springsecurity.controller.dto.CreateUserDto;
+import com.project.springsecurity.entities.Role;
+import com.project.springsecurity.entities.User;
+import com.project.springsecurity.repository.RoleRepository;
+import com.project.springsecurity.repository.UserRepository;
+import jakarta.persistence.Entity;
+import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Set;
+
+@RestController
+public class UserController {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+
+    public UserController(UserRepository userRepository,
+                          RoleRepository roleRepository,
+                          BCryptPasswordEncoder bCryptPasswordEncoder) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    }
+
+    @Transactional
+    @PostMapping("/signup")
+    public ResponseEntity<Void> newUser(@RequestBody CreateUserDto dto){
+
+        var basicRole = roleRepository.findByName(Role.Values.BASIC.name());
+
+        var userFromDb = userRepository.findByUsername(dto.username());
+        if(userFromDb.isPresent()){
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        var user = new User();
+        user.setUsername(dto.username());
+        user.setPassword(bCryptPasswordEncoder.encode(dto.password()));
+        user.setRoles(Set.of(basicRole));
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok().build();
+    }
+}
